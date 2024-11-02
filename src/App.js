@@ -8,17 +8,12 @@ import ReactMarkdown from "react-markdown";
 import Blogs from "./pages/blog";
 import rehypeRaw from "rehype-raw";
 import remarkGfm from "remark-gfm";
+// import { useNavigate } from "react-router-dom";
+import { ConsolePage } from "./ConsolePage.tsx";
 // import SlideReq from "./pages/blog";
 // import SlideRequirementsPage from './SlideRequirementsPage';
 
 const SlideRenderer = ({ htmlContent }) => {
-  // return (
-  //   <div
-  //     className="confined-container"
-  //     style={{ overflow: "auto", maxHeight: "80vh", border: "1px solid #ddd" }}
-  //     dangerouslySetInnerHTML={{ __html: htmlContent }}
-  //   />
-  // );
   return (
     <iframe
       title="Slide Content"
@@ -81,22 +76,11 @@ function App() {
 
       const result = await response.json();
       setSlideCodes(result.slideCode); // Store slides as an array
+      return result.slideCode;
     } catch (error) {
       console.error("Error generating slide:", error);
     }
   };
-
-  // const handleStartLesson = () => {
-  //   try {
-  //     const response = fetch("http://localhost:5000/start-lesson", {
-  //       method: "POST",
-  //       headers: {
-  //         "Content-Type": "application/json",
-  //       },
-  //       body: JSON.stringify({ slide: slideCodes[slideState] }),
-  //     });
-  //   } catch (error) {}
-  // };
 
   return (
     <Router>
@@ -165,6 +149,7 @@ function App() {
                       >
                         Start Lesson
                       </button> */}
+                      
                     </div>
                   ) : (
                     <div className="workspace-renderer">
@@ -188,6 +173,7 @@ function App() {
               </>
             }
           />
+          <Route path="/console" element={<ConsolePage data={ slideCodes } />} />
         </Routes>
       </div>
     </Router>

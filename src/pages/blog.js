@@ -1,16 +1,20 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { useLocation } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 
 function SlideReq({ onGenerate }) {
   const location = useLocation();
   const data = useMemo(() => location.state, [location]);
 
   const [formdata, setFormData] = useState({
-    totalSlides: 6,
+    totalSlides: 15,
     lessonType: "",
     slideRequirements: [{ id: 1, req: "" }],
     tutorRequirements: [{ id: 1, req: "" }],
   });
+
+  const [slideCodes, setSlideCodes] = useState([])
+  const [slideSummary, setSlideSummary] = useState([])
 
   useEffect(() => {
     if (data.lessonType) {
@@ -63,13 +67,35 @@ function SlideReq({ onGenerate }) {
   };
 
   const handleBackArrow = () => {
-    if (slideState > 1) {
+    if (slideState > 0) {
       setSlideState((prev) => prev - 1);
     }
   };
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    onGenerate(formdata); // Send form data to the parent (App.js) to generate scaffold
+  const handleSubmit = async (e) => {
+    await e.preventDefault();
+    setSlideCodes(await onGenerate(formdata)); // Send form data to the parent (App.js) to generate scaffold
+  };
+
+  const navigate = useNavigate();
+  const handleStartLesson = async () => {
+    try {
+      // const response = await fetch("http://localhost:5000/generate-summary", {
+      //   method: "POST",
+      //   headers: {
+      //     "Content-Type": "application/json",
+      //   },
+      //   body: JSON.stringify({ slideCodes }),
+      // });
+
+      // const result = await response.json();
+      // // setMarkdownSlides(result.slides); // Store slides as an array
+      // setSlideSummary(result.summaries);
+      // console.log("Summary Recieved", result.summaries);
+      // navigate("/console", {state: {slideCodes: slideCodes, slideSummary: result.summaries}});
+      navigate("/console")
+    } catch (error) {
+      console.error("Error recieving summary :", error);
+    }
   };
 
   const [slideState, setSlideState] = useState(1);
@@ -110,6 +136,9 @@ function SlideReq({ onGenerate }) {
       </button>
       <button type="submit" className="generate-button">
         Generate lesson slides
+      </button>
+      <button type="button" className="next-button" onClick={handleStartLesson}>
+        Generate lesson
       </button>
     </form>
   );
