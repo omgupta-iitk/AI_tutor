@@ -1,4 +1,5 @@
 import React from "react";
+import "globalthis/auto";
 import { useEffect, useRef, useCallback, useState, useMemo } from "react";
 
 import { RealtimeClient } from "@openai/realtime-api-beta";
@@ -47,20 +48,28 @@ export function ConsolePage(data: any) {
   const location = useLocation();
   const state = location.state as LocationState;
   const slideCodes = state?.slideCodes || [];
-  // const summaries = state?.slideSummary || [];
-  const summaries = ['This slide tells about the basics of the computer vision and its applications in the real world.', 'This slide tells about natural language processing in real world.'];
+  const summaries = state?.slideSummary || [];
+  // const summaries = [
+  //   "This slide tells about the basics of the computer vision and its applications in the real world.",
+  //   "This slide tells about natural language processing in real world.",
+  // ];
   // console.log(slideCodes, summaries);
-  const [slideState, setSlideState] = useState(1);
-  // const [summary, setSummary] = useState("");
-  // useEffect(() => {
-  //   if (summaries[slideState]) {
-  //     setSummary(summaries[slideState]);
-  //   }
-  // }, [slideState, summaries]);
-  /**
-   * Ask user for API Key
-   * If we're using the local relay server, we don't need this
-   */
+  const [slideState, setSlideState] = useState(0);
+  const [question, setQuestion] = useState(false);
+  const [prevConvo, setPrevConvo] = useState("");
+  const [prevSlide, setPrevSlide] = useState(0);
+  const [slideChange, setSlideChange] = useState(-1);
+  const slideChangeRef = useRef(slideChange);
+  const questionRef = useRef(question);
+  const prevConvoRef = useRef(prevConvo);
+  const prevSlideRef = useRef(prevSlide);
+  
+
+  // Update the ref whenever slideChange changes
+  useEffect(() => {
+    slideChangeRef.current = slideChange;
+  }, [slideChange]);
+
   const apiKey = LOCAL_RELAY_SERVER_URL
     ? ""
     : localStorage.getItem("tmp::voice_api_key") ||
@@ -122,8 +131,15 @@ export function ConsolePage(data: any) {
       {
         type: `input_text`,
         // text: `Hello!`,
-        text: `First Greet the student then explain the concept in very very short, also his name and current date will be given, this is the content of the slide ${slideState} the student is seeing:
-{${summaries[slideState-1]}}. Move to the next slide using the tool provided.
+        text: `First Greet the student then explain the concept, also his name and current date will be given, this is the content of the slide ${
+          slideState + 1
+        } the student is seeing:
+{${summaries[slideState]}}.
+
+Guidelines:
+1. Move to the next slide using the tool slide_change provided
+2. If the user asks a question then you must use the asked_question tool.
+3. Also, Answer the user question by giving the reference of your explaination on that slide.
 `,
       },
     ]);
@@ -289,37 +305,58 @@ export function ConsolePage(data: any) {
 
     client.addTool(
       {
-        name: "slide change",
-        description:
-          "Changes the slide to the given slide number",
+        name: "next_slide",
+        description: "Moves to the next slide.",
         parameters: {
           type: "object",
           properties: {
             slide: {
               type: "number",
-              description: "Slide number to change to",
+              description: "slide number",
             },
           },
-          required: ['slide'],
+          required: ["slide"],
         },
       },
       async ({ slide }: { [key: string]: any }) => {
-        // setMarker({ lat, lng, location });
-        // setCoords({ lat, lng, location });
-        console.log("slide changed by tool to", slide);
-        setSlideState(slide - 1);
-        // setSummary(summaries[slide-1]);
-        // const temperature = {
-        //   value: json.current.temperature_2m as number,
-        //   units: json.current_units.temperature_2m as string,
-        // };
-        // const wind_speed = {
-        //   value: json.current.wind_speed_10m as number,
-        //   units: json.current_units.wind_speed_10m as string,
-        // };
-        // setMarker({ lat, lng, location, temperature, wind_speed });
-        
-        return { ok: true };
+        console.log("TOOL: slide changed to ", slide);
+        setSlideChange(slide - 1);
+        console.log("Updated slideChange:", slideChangeRef.current);
+        // return { slide_change: "success" };
+        return { slide_change: "success"
+                  nextSlide_content: 
+                };
+      }
+    );
+    
+    client.addTool(
+      {
+        name: "asked_question",
+        description: "Moves to the slide from which the question is related and then comesback to the current state.",
+        parameters: {
+          type: "object",
+          properties: {
+            slide: {
+              type: "number",
+              description: "slide number for the question",
+            },
+            current_slide: {
+              type: "number",
+              description: "slide number for the current slide",
+            },
+            current_convo: {
+              type: "string",
+              description: "current conversation",
+            },
+          },
+          required: ["slide", "current_slide", "current_convo"],
+        },
+      },
+      async ({ slide, current_slide, current_convo }: { [key: string]: any }) => {
+        console.log("TOOL: Used with parameter as slide:", slide, "current_slide:", current_slide, "current_convo:", current_convo);
+        setSlideChange(slide - 1);
+        console.log("Updated slideChange:", slideChangeRef.current);
+        return { tool_use : "success" };
       }
     );
 
@@ -350,31 +387,37 @@ export function ConsolePage(data: any) {
         wavStreamPlayer.add16BitPCM(delta.audio, item.id);
       }
       if (item.status === "completed" && item.formatted.audio?.length) {
-        // if (item.role === "assistant") {
-        //   const time = item.formatted.audio.length / 24000;
-        //   const delay = Math.max(0, (time - 1) * 1000);
-        //   setTimeout(() => {
-        //     console.log("sending user message of ", slideState + 1);
-        //     // client.sendUserMessageContent([
-        //     //   {
-        //     //     type: "input_text",
-        //     //     text: `Now that we have covered the slide, let's move on to the next slide which is slide ${
-        //     //       slideState + 1
-        //     //     }.
-        //     //   slide content : {${summaries[slideState + 1]}}`,
-        //     //   },
-        //     // ]);
-        //   }, delay);
-        //   setTimeout(() => {
-        //     if (slideState-1 < summaries.length) {
-        //       setSlideState((prevState) => {
-        //         console.log("slide State updated to", prevState + 1);
-        //         return prevState + 1;
-        //       });
-        //     }
-        //   }, time * 1000);
-        //   console.log(items);
-        // }
+        if (item.role === "assistant") {
+          // if(slideChange !== -1) {
+          //   wavStreamPlayer.onAudioEnd = () => {
+          //   setSlideState(slideChange);
+          //   setSlideChange(-1);
+          //   }
+          // }
+          wavStreamPlayer.onAudioEnd = () => {
+            console.log("audio ended, slideChange is", slideChangeRef.current);
+            if (
+              slideChangeRef.current !== -1 &&
+              slideChangeRef.current < summaries.length
+            ) {
+              setSlideState(slideChangeRef.current);
+              setSlideChange(-1); // Reset slideChange
+              client.sendUserMessageContent([
+                {
+                  type: `input_text`,
+                  // text: `Hello!`,
+                  text: `Now, moving to the next slide, this is the content of the slide ${
+                    slideChangeRef.current + 1
+                  } the student is seeing:
+{${
+                    summaries[slideChangeRef.current]
+                  }}. Move to the next slide using the tool slide_change provided and if user ask question then answer it by changing the slide from which the question is related and then comeback to the slide and place where you left.
+`,
+                },
+              ]);
+            }
+          };
+        }
         const wavFile = await WavRecorder.decode(
           item.formatted.audio,
           24000,
@@ -401,72 +444,11 @@ export function ConsolePage(data: any) {
       <div className="content-area">
         <div className="workspace-renderer">
           <div key={slideState} className="markdown-slide">
-            <h3>Slide {slideState}</h3>
-            <div dangerouslySetInnerHTML={{ __html: slideCodes[slideState-1] }} />
+            <h3>Slide {slideState + 1}</h3>
+            <div dangerouslySetInnerHTML={{ __html: slideCodes[slideState] }} />
           </div>
         </div>
       </div>
-                <div className="content-block conversation">
-            <div className="content-block-title">conversation</div>
-            <div className="content-block-body" data-conversation-content>
-              {!items.length && `awaiting connection...`}
-              {items.map((conversationItem, i) => {
-                return (
-                  <div className="conversation-item" key={conversationItem.id}>
-                    <div className={`speaker ${conversationItem.role || ''}`}>
-                      <div>
-                        {(
-                          conversationItem.role || conversationItem.type
-                        ).replaceAll('_', ' ')}
-                      </div>
-                      <div
-                        className="close"
-                      >
-                        <X />
-                      </div>
-                    </div>
-                    <div className={`speaker-content`}>
-                      {/* tool response */}
-                      {conversationItem.type === 'function_call_output' && (
-                        <div>{conversationItem.formatted.output}</div>
-                      )}
-                      {/* tool call */}
-                      {!!conversationItem.formatted.tool && (
-                        <div>
-                          {conversationItem.formatted.tool.name}(
-                          {conversationItem.formatted.tool.arguments})
-                        </div>
-                      )}
-                      {!conversationItem.formatted.tool &&
-                        conversationItem.role === 'user' && (
-                          <div>
-                            {conversationItem.formatted.transcript ||
-                              (conversationItem.formatted.audio?.length
-                                ? '(awaiting transcript)'
-                                : conversationItem.formatted.text ||
-                                  '(item sent)')}
-                          </div>
-                        )}
-                      {!conversationItem.formatted.tool &&
-                        conversationItem.role === 'assistant' && (
-                          <div>
-                            {conversationItem.formatted.transcript ||
-                              conversationItem.formatted.text ||
-                              '(truncated)'}
-                          </div>
-                        )}
-                      {conversationItem.formatted.file && (
-                        <audio
-                          src={conversationItem.formatted.file.url}
-                          controls
-                        />
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
       <div className="content-actions">
         {isConnected && canPushToTalk && (
           <Button

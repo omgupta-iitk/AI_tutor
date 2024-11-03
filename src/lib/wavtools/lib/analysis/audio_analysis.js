@@ -200,4 +200,5 @@ export class AudioAnalysis {
   }
 }
 
+// eslint-disable-next-line no-undef
 globalThis.AudioAnalysis = AudioAnalysis;

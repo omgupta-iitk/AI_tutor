@@ -545,4 +545,5 @@ export class WavRecorder {
   }
 }
 
+// eslint-disable-next-line no-undef
 globalThis.WavRecorder = WavRecorder;

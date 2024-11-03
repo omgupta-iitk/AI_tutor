@@ -23,9 +23,10 @@ export class WavStreamPlayer {
 
   /**
    * Connects the audio context and enables output to speakers
+   * @param {{ onAudioStart?: Function, onAudioEnd?: Function }} options
    * @returns {Promise<true>}
    */
-  async connect() {
+  async connect({ onAudioStart = null, onAudioEnd = null } = {}) {
     this.context = new AudioContext({ sampleRate: this.sampleRate });
     if (this.context.state === 'suspended') {
       await this.context.resume();
@@ -40,6 +41,8 @@ export class WavStreamPlayer {
     analyser.fftSize = 8192;
     analyser.smoothingTimeConstant = 0.1;
     this.analyser = analyser;
+    this.onAudioEnd = onAudioEnd;
+    this.onAudioStart = onAudioStart;
     return true;
   }
 
@@ -81,6 +84,9 @@ export class WavStreamPlayer {
       if (event === 'stop') {
         streamNode.disconnect();
         this.stream = null;
+        if (this.onAudioEnd) {
+          this.onAudioEnd();
+        }
       } else if (event === 'offset') {
         const { requestId, trackId, offset } = e.data;
         const currentTime = offset / this.sampleRate;
@@ -90,6 +96,9 @@ export class WavStreamPlayer {
     this.analyser.disconnect();
     streamNode.connect(this.analyser);
     this.stream = streamNode;
+    if (this.onAudioStart) {
+      this.onAudioStart();
+    }
     return true;
   }
 
@@ -157,4 +166,5 @@ export class WavStreamPlayer {
   }
 }
 
+// eslint-disable-next-line no-undef
 globalThis.WavStreamPlayer = WavStreamPlayer;

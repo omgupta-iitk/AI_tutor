@@ -13,6 +13,7 @@
     "@types/react": "^18.3.5",
     "@types/react-dom": "^18.3.0",
     "dotenv": "^16.4.5",
+    "globalthis": "^1.0.4",
     "leaflet": "^1.9.4",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",

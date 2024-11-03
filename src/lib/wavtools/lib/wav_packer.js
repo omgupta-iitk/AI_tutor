@@ -110,4 +110,5 @@ export class WavPacker {
   }
 }
 
+// eslint-disable-next-line no-undef
 globalThis.WavPacker = WavPacker;

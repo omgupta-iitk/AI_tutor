@@ -79,20 +79,20 @@ function SlideReq({ onGenerate }) {
   const navigate = useNavigate();
   const handleStartLesson = async () => {
     try {
-      // const response = await fetch("http://localhost:5000/generate-summary", {
-      //   method: "POST",
-      //   headers: {
-      //     "Content-Type": "application/json",
-      //   },
-      //   body: JSON.stringify({ slideCodes }),
-      // });
+      const response = await fetch("http://localhost:5000/generate-summary", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ slideCodes }),
+      });
 
-      // const result = await response.json();
-      // // setMarkdownSlides(result.slides); // Store slides as an array
-      // setSlideSummary(result.summaries);
-      // console.log("Summary Recieved", result.summaries);
-      // navigate("/console", {state: {slideCodes: slideCodes, slideSummary: result.summaries}});
-      navigate("/console")
+      const result = await response.json();
+      // setMarkdownSlides(result.slides); // Store slides as an array
+      setSlideSummary(result.summaries);
+      console.log("Summary Recieved", result.summaries);
+      navigate("/console", {state: {slideCodes: slideCodes, slideSummary: result.summaries}});
+      // navigate("/console")
     } catch (error) {
       console.error("Error recieving summary :", error);
     }
