@@ -13,6 +13,7 @@ import { Button } from "./components/button/Button.tsx";
 import { Toggle } from "./components/toggle/Toggle.tsx";
 import { useLocation } from "react-router-dom";
 // import { useLocation } from 'react-router-dom';
+import useStack from './useStack.js'
 
 import "./App.css";
 const LOCAL_RELAY_SERVER_URL: string = "http://localhost:8081";
@@ -45,6 +46,9 @@ const SlideRenderer = ({ htmlContent }) => {
 };
 
 export function ConsolePage(data: any) {
+
+  const { push, pop, peek, getStack, clearStack } = useStack();
+
   const location = useLocation();
   const state = location.state as LocationState;
   const slideCodes = state?.slideCodes || [];
@@ -58,17 +62,29 @@ export function ConsolePage(data: any) {
   const [question, setQuestion] = useState(false);
   const [prevConvo, setPrevConvo] = useState("");
   const [prevSlide, setPrevSlide] = useState(0);
-  const [slideChange, setSlideChange] = useState(-1);
+  const [slideChange, setSlideChange] = useState(0);
   const slideChangeRef = useRef(slideChange);
   const questionRef = useRef(question);
   const prevConvoRef = useRef(prevConvo);
   const prevSlideRef = useRef(prevSlide);
-  
+  const slideStateRef = useRef(slideState);
 
   // Update the ref whenever slideChange changes
   useEffect(() => {
     slideChangeRef.current = slideChange;
   }, [slideChange]);
+  useEffect(() => {
+    questionRef.current = question;
+  }, [question]);
+  useEffect(() => {
+    prevConvoRef.current = prevConvo;
+  }, [prevConvo]);
+  useEffect(() => {
+    prevSlideRef.current = prevSlide;
+  }, [prevSlide]);
+  useEffect(() => {
+    slideStateRef.current = slideState;
+  }, [slideState]);
 
   const apiKey = LOCAL_RELAY_SERVER_URL
     ? ""
@@ -131,15 +147,15 @@ export function ConsolePage(data: any) {
       {
         type: `input_text`,
         // text: `Hello!`,
-        text: `First Greet the student then explain the concept, also his name and current date will be given, this is the content of the slide ${
+        text: `Icdnstruction: First Greet the student then explain the concept, also his name and current date will be given, this is the content of the slide ${
           slideState + 1
         } the student is seeing:
 {${summaries[slideState]}}.
 
 Guidelines:
-1. Move to the next slide using the tool slide_change provided
-2. If the user asks a question then you must use the asked_question tool.
-3. Also, Answer the user question by giving the reference of your explaination on that slide.
+1. If the student asks a question and if the question is related to other slide then use the question_asked tool and save the current state into it.
+2. Also, Answer the user question by giving the reference of your explaination on that slide.
+3. The next slide will be called autommaticaly after the explanation of a slide is given.
 `,
       },
     ]);
@@ -305,60 +321,89 @@ Guidelines:
 
     client.addTool(
       {
-        name: "next_slide",
-        description: "Moves to the next slide.",
+        name: "question_asked",
+        description: "Moves to the next slide and saves the current state. Provides further instruciton.",
         parameters: {
           type: "object",
           properties: {
             slide: {
               type: "number",
-              description: "slide number",
-            },
-          },
-          required: ["slide"],
-        },
-      },
-      async ({ slide }: { [key: string]: any }) => {
-        console.log("TOOL: slide changed to ", slide);
-        setSlideChange(slide - 1);
-        console.log("Updated slideChange:", slideChangeRef.current);
-        // return { slide_change: "success" };
-        return { slide_change: "success"
-                  nextSlide_content: 
-                };
-      }
-    );
-    
-    client.addTool(
-      {
-        name: "asked_question",
-        description: "Moves to the slide from which the question is related and then comesback to the current state.",
-        parameters: {
-          type: "object",
-          properties: {
-            slide: {
-              type: "number",
-              description: "slide number for the question",
+              description: "slide number to move to",
             },
             current_slide: {
               type: "number",
-              description: "slide number for the current slide",
+              description: "current slide number",
             },
             current_convo: {
               type: "string",
-              description: "current conversation",
+              description: "current conversation in a single line",
             },
           },
           required: ["slide", "current_slide", "current_convo"],
         },
       },
       async ({ slide, current_slide, current_convo }: { [key: string]: any }) => {
-        console.log("TOOL: Used with parameter as slide:", slide, "current_slide:", current_slide, "current_convo:", current_convo);
-        setSlideChange(slide - 1);
-        console.log("Updated slideChange:", slideChangeRef.current);
-        return { tool_use : "success" };
+        console.log("TOOL: slide changed to ", slide);
+        await setSlideState(slide - 1);
+        await setPrevSlide(current_slide);
+        await setPrevConvo(current_convo);
+        await setQuestion(true);
+        // return { state: `slide change success, now going back to ${current_slide}` , instructions:`Say: Now, Coming back, where we left off.`};
+        return;
       }
     );
+
+    // client.addTool(
+    //   {
+    //     name: "asked_question",
+    //     description:
+    //       "Moves to the slide from which the question is related and then comesback to the current state.",
+    //     parameters: {
+    //       type: "object",
+    //       properties: {
+    //         slide: {
+    //           type: "number",
+    //           description: "slide number for the question",
+    //         },
+    //         current_slide: {
+    //           type: "number",
+    //           description: "slide number for the current slide",
+    //         },
+    //         current_convo: {
+    //           type: "string",
+    //           description: "current conversation",
+    //         },
+    //       },
+    //       required: ["slide", "current_slide", "current_convo"],
+    //     },
+    //   },
+    //   async ({
+    //     slide,
+    //     current_slide,
+    //     current_convo,
+    //   }: {
+    //     [key: string]: any;
+    //   }) => {
+    //     if (slide === current_slide) {
+    //       return { tool_use: "done" };
+    //     }
+    //     console.log(
+    //       "TOOL: Used with parameter as slide:",
+    //       slide,
+    //       "current_slide:",
+    //       current_slide,
+    //       "current_convo:",
+    //       current_convo
+    //     );
+    //     // setSlideChange(slide - 1);
+    //     await setSlideState(slide - 1);
+    //     await setPrevSlide(current_slide);
+    //     await setPrevConvo(current_convo);
+    //     await setQuestion(true);
+    //     console.log("Updated slideChange:", slideChangeRef.current);
+    //     return { tool_use: "done" };
+    //   }
+    // );
 
     // handle realtime events from client + server for event logging
     client.on("realtime.event", (realtimeEvent: RealtimeEvent) => {
@@ -395,26 +440,43 @@ Guidelines:
           //   }
           // }
           wavStreamPlayer.onAudioEnd = () => {
-            console.log("audio ended, slideChange is", slideChangeRef.current);
-            if (
-              slideChangeRef.current !== -1 &&
-              slideChangeRef.current < summaries.length
-            ) {
-              setSlideState(slideChangeRef.current);
-              setSlideChange(-1); // Reset slideChange
+            if (questionRef.current === false) {
+              console.log(
+                "audio ended, slideChange is",
+                slideChangeRef.current
+              );
+              if (
+                slideChangeRef.current < summaries.length
+              ) {
+                setSlideState(slideChangeRef.current);
+                setSlideChange(-1);
+                client.sendUserMessageContent([
+                  {
+                    type: `input_text`,
+                    // text: `Hello!`,
+                    text: `Now, moving to the next slide, this is the content of the slide ${
+                      slideChangeRef.current + 1
+                    } the student is seeing:
+  {${summaries[slideChangeRef.current]}}.`,
+                  },
+                ]);
+                setSlideChange(slideChangeRef.current + 1);
+              }
+            } else {
+              setQuestion(false);
+              setSlideState(prevSlideRef.current);
+              setPrevSlide(0);
+              setPrevConvo("");
               client.sendUserMessageContent([
                 {
                   type: `input_text`,
                   // text: `Hello!`,
-                  text: `Now, moving to the next slide, this is the content of the slide ${
-                    slideChangeRef.current + 1
-                  } the student is seeing:
-{${
-                    summaries[slideChangeRef.current]
-                  }}. Move to the next slide using the tool slide_change provided and if user ask question then answer it by changing the slide from which the question is related and then comeback to the slide and place where you left.
-`,
+                  text: `Now, Coming back, where we left off, this is the content of the slide ${
+                    slideChangeRef.current + 1} and the coversation where we left off is as follows:
+                    ${prevConvoRef.current}`,
                 },
               ]);
+              // setSlideChange();
             }
           };
         }
@@ -443,10 +505,68 @@ Guidelines:
     <div className="app-container">
       <div className="content-area">
         <div className="workspace-renderer">
-          <div key={slideState} className="markdown-slide">
-            <h3>Slide {slideState + 1}</h3>
-            <div dangerouslySetInnerHTML={{ __html: slideCodes[slideState] }} />
+          <div key={slideStateRef.current} className="markdown-slide">
+            <h3>Slide {slideStateRef.current + 1}</h3>
+            <div dangerouslySetInnerHTML={{ __html: slideCodes[slideStateRef.current] }} />
           </div>
+        </div>
+      </div>
+      <div className="content-block conversation">
+        <div className="content-block-title">conversation</div>
+        <div className="content-block-body" data-conversation-content>
+          {!items.length && `awaiting connection...`}
+          {items.map((conversationItem, i) => {
+            return (
+              <div className="conversation-item" key={conversationItem.id}>
+                <div className={`speaker ${conversationItem.role || ""}`}>
+                  <div>
+                    {(
+                      conversationItem.role || conversationItem.type
+                    ).replaceAll("_", " ")}
+                  </div>
+                  <div
+                    className="close"
+                    // onClick={() => deleteConversationItem(conversationItem.id)}
+                  >
+                    <X />
+                  </div>
+                </div>
+                <div className={`speaker-content`}>
+                  {/* tool response */}
+                  {conversationItem.type === "function_call_output" && (
+                    <div>{conversationItem.formatted.output}</div>
+                  )}
+                  {/* tool call */}
+                  {!!conversationItem.formatted.tool && (
+                    <div>
+                      {conversationItem.formatted.tool.name}(
+                      {conversationItem.formatted.tool.arguments})
+                    </div>
+                  )}
+                  {!conversationItem.formatted.tool &&
+                    conversationItem.role === "user" && (
+                      <div>
+                        {conversationItem.formatted.transcript ||
+                          (conversationItem.formatted.audio?.length
+                            ? "(awaiting transcript)"
+                            : conversationItem.formatted.text || "(item sent)")}
+                      </div>
+                    )}
+                  {!conversationItem.formatted.tool &&
+                    conversationItem.role === "assistant" && (
+                      <div>
+                        {conversationItem.formatted.transcript ||
+                          conversationItem.formatted.text ||
+                          "(truncated)"}
+                      </div>
+                    )}
+                  {conversationItem.formatted.file && (
+                    <audio src={conversationItem.formatted.file.url} controls />
+                  )}
+                </div>
+              </div>
+            );
+          })}
         </div>
       </div>
       <div className="content-actions">
