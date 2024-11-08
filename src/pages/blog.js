@@ -2,12 +2,12 @@ import React, { useState, useEffect, useMemo } from "react";
 import { useLocation } from "react-router-dom";
 import { useNavigate } from "react-router-dom";
 
-function SlideReq({ onGenerate }) {
+function SlideReq({ onGenerate , total}) {
   const location = useLocation();
   const data = useMemo(() => location.state, [location]);
 
   const [formdata, setFormData] = useState({
-    totalSlides: Number(data.totalSlides),
+    totalSlides: total,
     tutorType: "",
     lessonType: "",
     slideRequirements: [{ id: 1, req: "" }],
@@ -104,7 +104,7 @@ function SlideReq({ onGenerate }) {
   return (
     <form className="lesson-form" onSubmit={handleSubmit}>
       <div className="form-group">
-        <label>Lesson Scaffold - {slideState} of {formdata.totalSlides} slides</label>
+        <label>Lesson Scaffold - {slideState} of {total} slides</label>
         <select
           name="lessonType"
           value={formdata.lessonType}

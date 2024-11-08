@@ -218,7 +218,6 @@ And the Tutor requirements are:
 `Instructions: Tool use: disabled.
 Coming back to the lecture you are on slide ${prevSlideRef.current + 1} and the saved conversation is {${prevConvoRef.current}}.
 The content of the slide was: {${summaries[prevSlideRef.current]}}.
-And the tutor requirements were : {${tutorReq[prevSlideRef.current].req}}.
 So Now continue the lecture from where you left off using the saved conversation.
 `,
       },
@@ -441,11 +440,11 @@ Say: Wait`,
           wavStreamPlayer.onAudioEnd = () => {
             if (
               slideStateRef.current + 1 < summaries.length &&
-              question === false
+              questionRef.current === false
             ) {
               console.log("audio ended, ", slideStateRef.current);
               setSlideState(slideStateRef.current + 1);
-              if (tutorReq[slideStateRef.current + 1].req) {
+              if (slideStateRef.current + 1<tutorReq.length) {
                 client.sendUserMessageContent([
                   {
                     type: `input_text`,

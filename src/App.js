@@ -142,7 +142,7 @@ function App() {
                   )}
                 </div>
                 <div className="form-area">
-                  <LessonForm onGenerate={handleScaffoldGeneration} />
+                  <LessonForm onGenerate={handleScaffoldGeneration}  />
                 </div>
               </>
             }
@@ -199,7 +199,7 @@ function App() {
                   )}
                 </div>
                 <div className="form-area">
-                  <Blogs onGenerate={handleSlideGeneration} />
+                  <Blogs onGenerate={handleSlideGeneration} total={selectedSlides.length}/>
                 </div>
               </>
             }
