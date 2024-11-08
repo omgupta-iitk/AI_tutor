@@ -5,7 +5,7 @@ import { useEffect, useRef, useCallback, useState, useMemo } from "react";
 import { RealtimeClient } from "@openai/realtime-api-beta";
 import { ItemType } from "@openai/realtime-api-beta/dist/lib/client.js";
 import { WavRecorder, WavStreamPlayer } from "./lib/wavtools/index.js";
-import { instructions } from "./utils/conversation_config.js";
+// import { instructions } from "./utils/conversation_config.js";
 import { WavRenderer } from "./utils/wav_renderer.ts";
 
 import { X, Edit, Zap } from "react-feather";
@@ -25,6 +25,8 @@ const LOCAL_RELAY_SERVER_URL: string = "http://localhost:8081";
 interface LocationState {
   slideCodes?: string[];
   summaries?: string[];
+  tutorReq?: any[];
+  tutorType?: string;
 }
 
 interface RealtimeEvent {
@@ -34,42 +36,47 @@ interface RealtimeEvent {
   event: { [key: string]: any };
 }
 
-const SlideRenderer = ({ htmlContent }) => {
-  return (
-    <iframe
-      title="Slide Content"
-      style={{ width: "100%", height: "80vh", border: "1px solid #ddd" }}
-      srcDoc={htmlContent}
-    />
-  );
-};
+// const SlideRenderer = ({ htmlContent }) => {
+//   return (
+//     <iframe
+//       title="Slide Content"
+//       style={{ width: "100%", height: "80vh", border: "1px solid #ddd" }}
+//       srcDoc={htmlContent}
+//     />
+//   );
+// };
 
 export function ConsolePage(data: any) {
-
   const location = useLocation();
   const state = location.state as LocationState;
   const slideCodes = state?.slideCodes || [];
   const summaries = state?.slideSummary || [];
-  // const summaries = [
-  //   "This slide tells about the basics of the computer vision and its applications in the real world.",
-  //   "This slide tells about natural language processing in real world.",
-  // ];
-  // console.log(slideCodes, summaries);
+  const tutorReq = state?.tutorReq || [];
+  const tutorType = state?.tutorType || "tutor";
+  const instructions = `System settings:
+Tool use: enabled.
+
+You are a tutor of personality ${tutorType} in a classroom setting. You are teaching a student about a topic by giving lecture based on the slides. The student is learning about a new concept. You are to explain the concept to the student.
+
+Instructions:
+- Do not ask questions to the user.
+- Follow the tutor requirements given with slide content.
+- Use slide content for explaining the concept to the student.
+- If user ask questions then use move_slide tool at the very start of explaing the answer.
+
+Personality:
+-  Be ${tutorType}.
+`;
+
   const [slideState, setSlideState] = useState(0);
   const [question, setQuestion] = useState(false);
   const [prevConvo, setPrevConvo] = useState("");
   const [prevSlide, setPrevSlide] = useState(0);
-  const [slideChange, setSlideChange] = useState(0);
-  const slideChangeRef = useRef(slideChange);
   const questionRef = useRef(question);
   const prevConvoRef = useRef(prevConvo);
   const prevSlideRef = useRef(prevSlide);
   const slideStateRef = useRef(slideState);
 
-  // Update the ref whenever slideChange changes
-  useEffect(() => {
-    slideChangeRef.current = slideChange;
-  }, [slideChange]);
   useEffect(() => {
     questionRef.current = question;
   }, [question]);
@@ -145,10 +152,12 @@ export function ConsolePage(data: any) {
         type: `input_text`,
         // text: `Hello!`,
         text: `Instructions: Tool use: disabled.
-First Greet the student then explain the concept, also his name and current date will be given, this is the content of the slide ${
-          slideState + 1
-        }, the student is seeing:
-{${summaries[slideState]}}.`,
+Following the given requirements, Explain the concept based on the content of slide to the student.
+This is the content of the slide ${slideState + 1}:
+{${summaries[slideState]}}.
+
+And the Tutor requirements are:
+{${tutorReq[slideState].req}}.`,
       },
     ]);
 
@@ -205,12 +214,17 @@ First Greet the student then explain the concept, also his name and current date
       {
         type: `input_text`,
         // text: `Hello!`,
-        text: `Instructions: Tool use: disabled.
-Coming back to lecture you are on slide ${prevSlideRef.current + 1} and the content of the slide was: {${summaries[prevSlideRef.current]}}.`,
+        text: 
+`Instructions: Tool use: disabled.
+Coming back to the lecture you are on slide ${prevSlideRef.current + 1} and the saved conversation is {${prevConvoRef.current}}.
+The content of the slide was: {${summaries[prevSlideRef.current]}}.
+And the tutor requirements were : {${tutorReq[prevSlideRef.current].req}}.
+So Now continue the lecture from where you left off using the saved conversation.
+`,
       },
     ]);
     setQuestion(false);
-  }
+  };
 
   const handleQuestion = async () => {
     setQuestion(true);
@@ -225,8 +239,9 @@ Coming back to lecture you are on slide ${prevSlideRef.current + 1} and the cont
       {
         type: `input_text`,
         // text: `Hello!`,
-        text: `Instructions: Tool use: enabled.
-use the save_state tool and also the user is goint to ask the questions, so use of move_slide tool is must when the question is asked.
+        text: 
+`Instructions: Tool use: enabled.
+Use the save_state tool and also the user is goint to ask the questions, so use of move_slide tool is must when the question is asked.
 Say: Wait`,
       },
     ]);
@@ -333,7 +348,6 @@ Say: Wait`,
     const wavStreamPlayer = wavStreamPlayerRef.current;
     const client = clientRef.current;
     client.updateSession({ instructions: instructions });
-    // Set transcription, otherwise we don't get user transcriptions back
     client.updateSession({
       input_audio_transcription: { model: "whisper-1" },
     });
@@ -384,11 +398,14 @@ Say: Wait`,
           required: ["current_slide", "current_conversation"],
         },
       },
-      async ({ current_slide, current_conversation }: { [key: string]: any }) => {
-        // console.log("TOOL: slide changed to ", slide);
-        // await setSlideState(slide - 1);
+      async ({
+        current_slide,
+        current_conversation,
+      }: {
+        [key: string]: any;
+      }) => {
         console.log("TOOL: state saved", current_slide, current_conversation);
-        setPrevSlide(current_slide- 1);
+        setPrevSlide(current_slide - 1);
         setPrevConvo(current_conversation);
         return;
       }
@@ -399,7 +416,6 @@ Say: Wait`,
       setRealtimeEvents((realtimeEvents) => {
         const lastEvent = realtimeEvents[realtimeEvents.length - 1];
         if (lastEvent?.event.type === realtimeEvent.event.type) {
-          // if we receive multiple events in a row, aggregate them for display purposes
           lastEvent.count = (lastEvent.count || 0) + 1;
           return realtimeEvents.slice(0, -1).concat(lastEvent);
         } else {
@@ -422,26 +438,39 @@ Say: Wait`,
       }
       if (item.status === "completed" && item.formatted.audio?.length) {
         if (item.role === "assistant") {
-          // if(slideChange !== -1) {
-          //   wavStreamPlayer.onAudioEnd = () => {
-          //   setSlideState(slideChange);
-          //   setSlideChange(-1);
-          //   }
-          // }
           wavStreamPlayer.onAudioEnd = () => {
-            if( slideStateRef.current + 1 < summaries.length && question === false) {
+            if (
+              slideStateRef.current + 1 < summaries.length &&
+              question === false
+            ) {
               console.log("audio ended, ", slideStateRef.current);
               setSlideState(slideStateRef.current + 1);
-              client.sendUserMessageContent([
-                {
-                  type: `input_text`,
-                  // text: `Hello!`,
-                  text: `Instructions: Tool use: disabled.
-                  Now, moving to the next slide, this is the content of the slide ${
-                    slideStateRef.current + 2
-                  } the student is seeing:  {${summaries[slideStateRef.current+1]}}.`,
-                },
-              ]);
+              if (tutorReq[slideStateRef.current + 1].req) {
+                client.sendUserMessageContent([
+                  {
+                    type: `input_text`,
+                    text: 
+`Instructions: Tool use: disabled.
+Now, moving to the next slide.
+This is the content of the slide ${slideStateRef.current + 2} the student is seeing:
+{${summaries[slideStateRef.current + 1]}}.
+And the tutor requirements are below if given, if not then you can explain the concept in your own way.:
+{${tutorReq[slideStateRef.current + 1].req}}.`,
+                  },
+                ]);
+              } else {
+                client.sendUserMessageContent([
+                  {
+                    type: `input_text`,
+                    text: 
+`Instructions: Tool use: disabled.
+Now, moving to the next slide.
+This is the content of the slide ${slideStateRef.current + 2} the student is seeing:
+{${summaries[slideStateRef.current + 1]}}.
+And the tutor requirements are not given for this slide so you can explain the concept in your own way.`,
+                  },
+                ]);
+              }
             }
           };
         }
@@ -458,7 +487,6 @@ Say: Wait`,
     setItems(client.conversation.getItems());
 
     return () => {
-      // cleanup; resets to defaults
       client.reset();
     };
   }, []);
@@ -493,10 +521,7 @@ Say: Wait`,
                       conversationItem.role || conversationItem.type
                     ).replaceAll("_", " ")}
                   </div>
-                  <div
-                    className="close"
-                    // onClick={() => deleteConversationItem(conversationItem.id)}
-                  >
+                  <div className="close">
                     <X />
                   </div>
                 </div>
@@ -543,7 +568,7 @@ Say: Wait`,
           <Button
             label={isRecording ? "release to send" : "push to talk"}
             buttonStyle={isRecording ? "alert" : "regular"}
-            disabled={!isConnected || !canPushToTalk}
+            disabled={(!isConnected || !canPushToTalk) && questionRef.current}
             onMouseDown={startRecording}
             onMouseUp={stopRecording}
           />
@@ -557,7 +582,7 @@ Say: Wait`,
           onClick={isConnected ? disconnectConversation : connectConversation}
         />
         <Button
-          label={ !questionRef.current ? "Ask Questions" : "Return to Slide"}
+          label={!questionRef.current ? "Ask Questions" : "Return to Slide"}
           buttonStyle={isConnected ? "regular" : "action"}
           icon={isConnected ? Edit : Zap}
           iconPosition={isConnected ? "end" : "start"}

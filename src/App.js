@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 // import { useNavigate } from "react-router-dom";
 import "./App.css";
 import LessonForm from "./LessonForm";
@@ -27,6 +27,12 @@ function App() {
   const [markdownSlides, setMarkdownSlides] = useState([]);
   const [slideCodes, setSlideCodes] = useState([]);
   const [slideState, setSlideState] = useState(0);
+  const [selectedSlides, setSelectedSlides] = useState([]);
+  const [totalSlides, setTotalSlides] = useState(0);
+  const totalSlidesRef = React.useRef(totalSlides);
+  useEffect(() => {
+    totalSlidesRef.current = totalSlides;
+  }, [totalSlides]);
 
   const handleScaffoldGeneration = async (formData) => {
     try {
@@ -45,14 +51,31 @@ function App() {
     }
   };
 
+  // const handleCheckboxChange = (index) => {
+  //   setSelectedSlides((prevSelected) =>
+  //     prevSelected.includes(index)
+  //       ? prevSelected.filter((i) => i !== index)
+  //       : [...prevSelected, index]
+  //   );
+  //   setTotalSlides(selectedSlides.length);
+  // };
+  const handleCheckboxChange = (slideContent) => {
+    setSelectedSlides((prevSelected) =>
+      prevSelected.includes(slideContent)
+        ? prevSelected.filter((content) => content !== slideContent)
+        : [...prevSelected, slideContent]
+    );
+    setTotalSlides(selectedSlides.length);
+  };
+
   const handleNextSlide = () => {
-    if (slideState < 6) {
+    if (slideState + 1 < totalSlidesRef.current) {
       setSlideState((prev) => prev + 1);
     }
   };
 
   const handleBackSlide = () => {
-    if (slideState > 1) {
+    if (slideState > 0) {
       setSlideState((prev) => prev - 1);
     }
   };
@@ -60,7 +83,7 @@ function App() {
   const handleSlideGeneration = async (formData) => {
     try {
       if (markdownSlides.length > 0) {
-        const newObj = { slides: markdownSlides, ...formData };
+        const newObj = { slides: selectedSlides, totalSlides: selectedSlides.length, ...formData };
         formData = newObj;
       }
       const response = await fetch(
@@ -96,6 +119,15 @@ function App() {
                       {markdownSlides.map((slide, index) => (
                         <div key={index} className="markdown-slide">
                           <h3>Slide {index + 1}</h3>
+                          {/* Checkbox for selecting the slide */}
+                          <label>
+                            <input
+                              type="checkbox"
+                              checked={selectedSlides.includes(slide)}
+                              onChange={() => handleCheckboxChange(slide)}
+                            />
+                            Select Slide
+                          </label>
                           <ReactMarkdown
                             remarkPlugins={remarkGfm}
                             rehypePlugins={[rehypeRaw]}
@@ -149,11 +181,10 @@ function App() {
                       >
                         Start Lesson
                       </button> */}
-                      
                     </div>
                   ) : (
                     <div className="workspace-renderer">
-                      {markdownSlides.map((slide, index) => (
+                      {selectedSlides.map((slide, index) => (
                         <div key={index} className="markdown-slide">
                           <h3>Slide {index + 1}</h3>
                           <ReactMarkdown
@@ -173,7 +204,7 @@ function App() {
               </>
             }
           />
-          <Route path="/console" element={<ConsolePage data={ slideCodes } />} />
+          <Route path="/console" element={<ConsolePage data={slideCodes} />} />
         </Routes>
       </div>
     </Router>

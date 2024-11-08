@@ -7,20 +7,25 @@ function SlideReq({ onGenerate }) {
   const data = useMemo(() => location.state, [location]);
 
   const [formdata, setFormData] = useState({
-    totalSlides: 15,
+    totalSlides: Number(data.totalSlides),
+    tutorType: "",
     lessonType: "",
     slideRequirements: [{ id: 1, req: "" }],
     tutorRequirements: [{ id: 1, req: "" }],
   });
 
   const [slideCodes, setSlideCodes] = useState([])
-  const [slideSummary, setSlideSummary] = useState([])
+  const [slideState, setSlideState] = useState(1);
+
+  
+  // const [slideSummary, setSlideSummary] = useState([])
 
   useEffect(() => {
     if (data.lessonType) {
       setFormData((prev) => ({
         ...prev,
         lessonType: data.lessonType,
+        tutorType: data.tutorType,
       }));
     }
   }, [data]);
@@ -67,13 +72,13 @@ function SlideReq({ onGenerate }) {
   };
 
   const handleBackArrow = () => {
-    if (slideState > 0) {
+    if (slideState > 1) {
       setSlideState((prev) => prev - 1);
     }
   };
   const handleSubmit = async (e) => {
     await e.preventDefault();
-    setSlideCodes(await onGenerate(formdata)); // Send form data to the parent (App.js) to generate scaffold
+    setSlideCodes(await onGenerate(formdata));
   };
 
   const navigate = useNavigate();
@@ -88,22 +93,18 @@ function SlideReq({ onGenerate }) {
       });
 
       const result = await response.json();
-      // setMarkdownSlides(result.slides); // Store slides as an array
-      setSlideSummary(result.summaries);
+      // setSlideSummary(result.summaries);
       console.log("Summary Recieved", result.summaries);
-      navigate("/console", {state: {slideCodes: slideCodes, slideSummary: result.summaries}});
-      // navigate("/console")
+      navigate("/console", {state: {slideCodes: slideCodes, slideSummary: result.summaries, tutorReq: formdata.tutorRequirements, tutorType: formdata.tutorType}});
     } catch (error) {
       console.error("Error recieving summary :", error);
     }
   };
 
-  const [slideState, setSlideState] = useState(1);
-
   return (
     <form className="lesson-form" onSubmit={handleSubmit}>
       <div className="form-group">
-        <label>Lesson Scaffold - {slideState} of 15 slides</label>
+        <label>Lesson Scaffold - {slideState} of {formdata.totalSlides} slides</label>
         <select
           name="lessonType"
           value={formdata.lessonType}
