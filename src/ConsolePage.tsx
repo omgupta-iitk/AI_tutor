@@ -13,7 +13,6 @@ import { Button } from "./components/button/Button.tsx";
 import { Toggle } from "./components/toggle/Toggle.tsx";
 import { useLocation } from "react-router-dom";
 // import { useLocation } from 'react-router-dom';
-import useStack from './useStack.js'
 
 import "./App.css";
 const LOCAL_RELAY_SERVER_URL: string = "http://localhost:8081";
@@ -46,8 +45,6 @@ const SlideRenderer = ({ htmlContent }) => {
 };
 
 export function ConsolePage(data: any) {
-
-  const { push, pop, peek, getStack, clearStack } = useStack();
 
   const location = useLocation();
   const state = location.state as LocationState;
@@ -147,16 +144,11 @@ export function ConsolePage(data: any) {
       {
         type: `input_text`,
         // text: `Hello!`,
-        text: `Icdnstruction: First Greet the student then explain the concept, also his name and current date will be given, this is the content of the slide ${
+        text: `Instructions: Tool use: disabled.
+First Greet the student then explain the concept, also his name and current date will be given, this is the content of the slide ${
           slideState + 1
-        } the student is seeing:
-{${summaries[slideState]}}.
-
-Guidelines:
-1. If the student asks a question and if the question is related to other slide then use the question_asked tool and save the current state into it.
-2. Also, Answer the user question by giving the reference of your explaination on that slide.
-3. The next slide will be called autommaticaly after the explanation of a slide is given.
-`,
+        }, the student is seeing:
+{${summaries[slideState]}}.`,
       },
     ]);
 
@@ -165,9 +157,6 @@ Guidelines:
     }
   }, [summaries, slideState]);
 
-  /**
-   * Disconnect and reset conversation state
-   */
   const disconnectConversation = useCallback(async () => {
     setIsConnected(false);
     setRealtimeEvents([]);
@@ -182,10 +171,6 @@ Guidelines:
     await wavStreamPlayer.interrupt();
   }, []);
 
-  /**
-   * In push-to-talk mode, start recording
-   * .appendInputAudio() for each sample
-   */
   const startRecording = async () => {
     setIsRecording(true);
     const client = clientRef.current;
@@ -199,15 +184,52 @@ Guidelines:
     await wavRecorder.record((data) => client.appendInputAudio(data.mono));
   };
 
-  /**
-   * In push-to-talk mode, stop recording
-   */
   const stopRecording = async () => {
     setIsRecording(false);
     const client = clientRef.current;
     const wavRecorder = wavRecorderRef.current;
     await wavRecorder.pause();
     client.createResponse();
+  };
+
+  const handleSlide = async () => {
+    setSlideState(prevSlideRef.current);
+    const client = clientRef.current;
+    const wavStreamPlayer = wavStreamPlayerRef.current;
+    const trackSampleOffset = await wavStreamPlayer.interrupt();
+    if (trackSampleOffset?.trackId) {
+      const { trackId, offset } = trackSampleOffset;
+      await client.cancelResponse(trackId, offset);
+    }
+    await client.sendUserMessageContent([
+      {
+        type: `input_text`,
+        // text: `Hello!`,
+        text: `Instructions: Tool use: disabled.
+Coming back to lecture you are on slide ${prevSlideRef.current + 1} and the content of the slide was: {${summaries[prevSlideRef.current]}}.`,
+      },
+    ]);
+    setQuestion(false);
+  }
+
+  const handleQuestion = async () => {
+    setQuestion(true);
+    const client = clientRef.current;
+    const wavStreamPlayer = wavStreamPlayerRef.current;
+    const trackSampleOffset = await wavStreamPlayer.interrupt();
+    if (trackSampleOffset?.trackId) {
+      const { trackId, offset } = trackSampleOffset;
+      await client.cancelResponse(trackId, offset);
+    }
+    client.sendUserMessageContent([
+      {
+        type: `input_text`,
+        // text: `Hello!`,
+        text: `Instructions: Tool use: enabled.
+use the save_state tool and also the user is goint to ask the questions, so use of move_slide tool is must when the question is asked.
+Say: Wait`,
+      },
+    ]);
   };
 
   useEffect(() => {
@@ -235,9 +257,6 @@ Guidelines:
     }
   }, [items]);
 
-  /**
-   * Set up render loops for the visualization canvas
-   */
   useEffect(() => {
     let isLoaded = true;
 
@@ -313,16 +332,20 @@ Guidelines:
     // Get refs
     const wavStreamPlayer = wavStreamPlayerRef.current;
     const client = clientRef.current;
-
-    // Set instructions
     client.updateSession({ instructions: instructions });
     // Set transcription, otherwise we don't get user transcriptions back
-    client.updateSession({ input_audio_transcription: { model: "whisper-1" } });
-
+    client.updateSession({
+      input_audio_transcription: { model: "whisper-1" },
+    });
+    client.updateSession({ instructions: instructions });
+    client.updateSession({
+      input_audio_transcription: { model: "whisper-1" },
+    });
     client.addTool(
       {
-        name: "question_asked",
-        description: "Moves to the next slide and saves the current state. Provides further instruciton.",
+        name: "move_slide",
+        description:
+          "Moves to the slide given a number. Provides further instruction.",
         parameters: {
           type: "object",
           properties: {
@@ -330,80 +353,46 @@ Guidelines:
               type: "number",
               description: "slide number to move to",
             },
-            current_slide: {
-              type: "number",
-              description: "current slide number",
-            },
-            current_convo: {
-              type: "string",
-              description: "current conversation in a single line",
-            },
           },
-          required: ["slide", "current_slide", "current_convo"],
+          required: ["slide"],
         },
       },
-      async ({ slide, current_slide, current_convo }: { [key: string]: any }) => {
+      async ({ slide }: { [key: string]: any }) => {
         console.log("TOOL: slide changed to ", slide);
         await setSlideState(slide - 1);
-        await setPrevSlide(current_slide);
-        await setPrevConvo(current_convo);
-        await setQuestion(true);
-        // return { state: `slide change success, now going back to ${current_slide}` , instructions:`Say: Now, Coming back, where we left off.`};
         return;
       }
     );
 
-    // client.addTool(
-    //   {
-    //     name: "asked_question",
-    //     description:
-    //       "Moves to the slide from which the question is related and then comesback to the current state.",
-    //     parameters: {
-    //       type: "object",
-    //       properties: {
-    //         slide: {
-    //           type: "number",
-    //           description: "slide number for the question",
-    //         },
-    //         current_slide: {
-    //           type: "number",
-    //           description: "slide number for the current slide",
-    //         },
-    //         current_convo: {
-    //           type: "string",
-    //           description: "current conversation",
-    //         },
-    //       },
-    //       required: ["slide", "current_slide", "current_convo"],
-    //     },
-    //   },
-    //   async ({
-    //     slide,
-    //     current_slide,
-    //     current_convo,
-    //   }: {
-    //     [key: string]: any;
-    //   }) => {
-    //     if (slide === current_slide) {
-    //       return { tool_use: "done" };
-    //     }
-    //     console.log(
-    //       "TOOL: Used with parameter as slide:",
-    //       slide,
-    //       "current_slide:",
-    //       current_slide,
-    //       "current_convo:",
-    //       current_convo
-    //     );
-    //     // setSlideChange(slide - 1);
-    //     await setSlideState(slide - 1);
-    //     await setPrevSlide(current_slide);
-    //     await setPrevConvo(current_convo);
-    //     await setQuestion(true);
-    //     console.log("Updated slideChange:", slideChangeRef.current);
-    //     return { tool_use: "done" };
-    //   }
-    // );
+    client.addTool(
+      {
+        name: "save_state",
+        description:
+          "Saves the current state of the conversation for later use.",
+        parameters: {
+          type: "object",
+          properties: {
+            current_slide: {
+              type: "number",
+              description: "current slide number",
+            },
+            current_conversation: {
+              type: "string",
+              description: "current conversation in a single sentence",
+            },
+          },
+          required: ["current_slide", "current_conversation"],
+        },
+      },
+      async ({ current_slide, current_conversation }: { [key: string]: any }) => {
+        // console.log("TOOL: slide changed to ", slide);
+        // await setSlideState(slide - 1);
+        console.log("TOOL: state saved", current_slide, current_conversation);
+        setPrevSlide(current_slide- 1);
+        setPrevConvo(current_conversation);
+        return;
+      }
+    );
 
     // handle realtime events from client + server for event logging
     client.on("realtime.event", (realtimeEvent: RealtimeEvent) => {
@@ -440,43 +429,19 @@ Guidelines:
           //   }
           // }
           wavStreamPlayer.onAudioEnd = () => {
-            if (questionRef.current === false) {
-              console.log(
-                "audio ended, slideChange is",
-                slideChangeRef.current
-              );
-              if (
-                slideChangeRef.current < summaries.length
-              ) {
-                setSlideState(slideChangeRef.current);
-                setSlideChange(-1);
-                client.sendUserMessageContent([
-                  {
-                    type: `input_text`,
-                    // text: `Hello!`,
-                    text: `Now, moving to the next slide, this is the content of the slide ${
-                      slideChangeRef.current + 1
-                    } the student is seeing:
-  {${summaries[slideChangeRef.current]}}.`,
-                  },
-                ]);
-                setSlideChange(slideChangeRef.current + 1);
-              }
-            } else {
-              setQuestion(false);
-              setSlideState(prevSlideRef.current);
-              setPrevSlide(0);
-              setPrevConvo("");
+            if( slideStateRef.current + 1 < summaries.length && question === false) {
+              console.log("audio ended, ", slideStateRef.current);
+              setSlideState(slideStateRef.current + 1);
               client.sendUserMessageContent([
                 {
                   type: `input_text`,
                   // text: `Hello!`,
-                  text: `Now, Coming back, where we left off, this is the content of the slide ${
-                    slideChangeRef.current + 1} and the coversation where we left off is as follows:
-                    ${prevConvoRef.current}`,
+                  text: `Instructions: Tool use: disabled.
+                  Now, moving to the next slide, this is the content of the slide ${
+                    slideStateRef.current + 2
+                  } the student is seeing:  {${summaries[slideStateRef.current+1]}}.`,
                 },
               ]);
-              // setSlideChange();
             }
           };
         }
@@ -507,7 +472,11 @@ Guidelines:
         <div className="workspace-renderer">
           <div key={slideStateRef.current} className="markdown-slide">
             <h3>Slide {slideStateRef.current + 1}</h3>
-            <div dangerouslySetInnerHTML={{ __html: slideCodes[slideStateRef.current] }} />
+            <div
+              dangerouslySetInnerHTML={{
+                __html: slideCodes[slideStateRef.current],
+              }}
+            />
           </div>
         </div>
       </div>
@@ -586,6 +555,14 @@ Guidelines:
           icon={isConnected ? X : Zap}
           buttonStyle={isConnected ? "regular" : "action"}
           onClick={isConnected ? disconnectConversation : connectConversation}
+        />
+        <Button
+          label={ !questionRef.current ? "Ask Questions" : "Return to Slide"}
+          buttonStyle={isConnected ? "regular" : "action"}
+          icon={isConnected ? Edit : Zap}
+          iconPosition={isConnected ? "end" : "start"}
+          disabled={!isConnected}
+          onClick={!questionRef.current ? handleQuestion : handleSlide}
         />
       </div>
     </div>
