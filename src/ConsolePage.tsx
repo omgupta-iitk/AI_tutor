@@ -350,10 +350,6 @@ Say: Wait`,
     client.updateSession({
       input_audio_transcription: { model: "whisper-1" },
     });
-    client.updateSession({ instructions: instructions });
-    client.updateSession({
-      input_audio_transcription: { model: "whisper-1" },
-    });
     client.addTool(
       {
         name: "move_slide",
@@ -445,12 +441,13 @@ Say: Wait`,
               console.log("audio ended, ", slideStateRef.current);
               setSlideState(slideStateRef.current + 1);
               if (slideStateRef.current + 1<tutorReq.length) {
+                console.log("test1")
                 client.sendUserMessageContent([
                   {
                     type: `input_text`,
                     text: 
 `Instructions: Tool use: disabled.
-Now, moving to the next slide.
+Now, coming to the next slide,
 This is the content of the slide ${slideStateRef.current + 2} the student is seeing:
 {${summaries[slideStateRef.current + 1]}}.
 And the tutor requirements are below if given, if not then you can explain the concept in your own way.:
@@ -458,6 +455,7 @@ And the tutor requirements are below if given, if not then you can explain the c
                   },
                 ]);
               } else {
+                console.log("test2")
                 client.sendUserMessageContent([
                   {
                     type: `input_text`,
@@ -507,61 +505,67 @@ And the tutor requirements are not given for this slide so you can explain the c
           </div>
         </div>
       </div>
-      <div className="content-block conversation">
-        <div className="content-block-title">conversation</div>
-        <div className="content-block-body" data-conversation-content>
-          {!items.length && `awaiting connection...`}
-          {items.map((conversationItem, i) => {
-            return (
-              <div className="conversation-item" key={conversationItem.id}>
-                <div className={`speaker ${conversationItem.role || ""}`}>
-                  <div>
-                    {(
-                      conversationItem.role || conversationItem.type
-                    ).replaceAll("_", " ")}
-                  </div>
-                  <div className="close">
-                    <X />
-                  </div>
-                </div>
-                <div className={`speaker-content`}>
-                  {/* tool response */}
-                  {conversationItem.type === "function_call_output" && (
-                    <div>{conversationItem.formatted.output}</div>
-                  )}
-                  {/* tool call */}
-                  {!!conversationItem.formatted.tool && (
-                    <div>
-                      {conversationItem.formatted.tool.name}(
-                      {conversationItem.formatted.tool.arguments})
+          <div className="content-block conversation">
+            <div className="content-block-title">conversation</div>
+            <div className="content-block-body" data-conversation-content>
+              {!items.length && `awaiting connection...`}
+              {items.map((conversationItem, i) => {
+                return (
+                  <div className="conversation-item" key={conversationItem.id}>
+                    <div className={`speaker ${conversationItem.role || ''}`}>
+                      <div>
+                        {(
+                          conversationItem.role || conversationItem.type
+                        ).replaceAll('_', ' ')}
+                      </div>
+                      <div
+                        className="close"
+                      >
+                        <X />
+                      </div>
                     </div>
-                  )}
-                  {!conversationItem.formatted.tool &&
-                    conversationItem.role === "user" && (
-                      <div>
-                        {conversationItem.formatted.transcript ||
-                          (conversationItem.formatted.audio?.length
-                            ? "(awaiting transcript)"
-                            : conversationItem.formatted.text || "(item sent)")}
-                      </div>
-                    )}
-                  {!conversationItem.formatted.tool &&
-                    conversationItem.role === "assistant" && (
-                      <div>
-                        {conversationItem.formatted.transcript ||
-                          conversationItem.formatted.text ||
-                          "(truncated)"}
-                      </div>
-                    )}
-                  {conversationItem.formatted.file && (
-                    <audio src={conversationItem.formatted.file.url} controls />
-                  )}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
+                    <div className={`speaker-content`}>
+                      {/* tool response */}
+                      {conversationItem.type === 'function_call_output' && (
+                        <div>{conversationItem.formatted.output}</div>
+                      )}
+                      {/* tool call */}
+                      {!!conversationItem.formatted.tool && (
+                        <div>
+                          {conversationItem.formatted.tool.name}(
+                          {conversationItem.formatted.tool.arguments})
+                        </div>
+                      )}
+                      {!conversationItem.formatted.tool &&
+                        conversationItem.role === 'user' && (
+                          <div>
+                            {conversationItem.formatted.transcript ||
+                              (conversationItem.formatted.audio?.length
+                                ? '(awaiting transcript)'
+                                : conversationItem.formatted.text ||
+                                  '(item sent)')}
+                          </div>
+                        )}
+                      {!conversationItem.formatted.tool &&
+                        conversationItem.role === 'assistant' && (
+                          <div>
+                            {conversationItem.formatted.transcript ||
+                              conversationItem.formatted.text ||
+                              '(truncated)'}
+                          </div>
+                        )}
+                      {conversationItem.formatted.file && (
+                        <audio
+                          src={conversationItem.formatted.file.url}
+                          controls
+                        />
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
       <div className="content-actions">
         {isConnected && canPushToTalk && (
           <Button
