@@ -43,6 +43,7 @@ export class WavStreamPlayer {
     this.analyser = analyser;
     this.onAudioEnd = onAudioEnd;
     this.onAudioStart = onAudioStart;
+    this.st = false;
     return true;
   }
 
@@ -87,6 +88,7 @@ export class WavStreamPlayer {
         if (this.onAudioEnd) {
           this.onAudioEnd();
         }
+        // console.log("==========audio end==========");
       } else if (event === 'offset') {
         const { requestId, trackId, offset } = e.data;
         const currentTime = offset / this.sampleRate;
@@ -99,6 +101,7 @@ export class WavStreamPlayer {
     if (this.onAudioStart) {
       this.onAudioStart();
     }
+    this.st = true;
     return true;
   }
 

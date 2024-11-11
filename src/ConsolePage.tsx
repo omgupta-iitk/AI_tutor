@@ -15,6 +15,7 @@ import { useLocation } from "react-router-dom";
 // import { useLocation } from 'react-router-dom';
 
 import "./App.css";
+import { start } from "repl";
 const LOCAL_RELAY_SERVER_URL: string = "http://localhost:8081";
 // process.env.REACT_APP_LOCAL_RELAY_SERVER_URL || '';
 
@@ -72,11 +73,22 @@ Personality:
   const [question, setQuestion] = useState(false);
   const [prevConvo, setPrevConvo] = useState("");
   const [prevSlide, setPrevSlide] = useState(0);
+  const [audioSt, setAudioSt] = useState(false);
+  const [timeState, setTimeState] = useState(0);
   const questionRef = useRef(question);
   const prevConvoRef = useRef(prevConvo);
   const prevSlideRef = useRef(prevSlide);
   const slideStateRef = useRef(slideState);
+  const audioStRef = useRef(audioSt);
+  const timeStateRef = useRef(timeState);
 
+
+useEffect(() => {
+  timeStateRef.current = timeState;
+},[timeState])
+useEffect(() => {
+  audioStRef.current = audioSt;
+},[audioSt])
   useEffect(() => {
     questionRef.current = question;
   }, [question]);
@@ -128,6 +140,68 @@ Personality:
   const [canPushToTalk, setCanPushToTalk] = useState(true);
   const [isRecording, setIsRecording] = useState(false);
 
+  
+  // const wavStreamPlayer = wavStreamPlayerRef.current;
+  // wavStreamPlayer.onAudioEnd = () => {
+  //   console.log("audio ended.................");
+  // }
+
+
+//   useEffect(()=>{
+//     let startTime=0;
+//     let endTime = 0;
+//       const wavStreamPlayer = wavStreamPlayerRef.current;
+//       wavStreamPlayer.onAudioStart = () => {
+//         console.log("audio started...............");
+//           startTime = Date.now();
+//           // console.log(startTime)
+        
+//       };
+//       wavStreamPlayer.onAudioEnd = () => {
+//         console.log("audio ended.................");
+//         endTime = Date.now()
+//         // console.log(startTime)
+//         const elap = endTime - startTime;
+//         // console.log(elap)
+//         if(elap*1000 >= 2 && startTime !== 0 && endTime !== 0){
+//           console.log("actuall end of audio")
+//           const client = clientRef.current;
+//             if(slideStateRef.current + 1 < summaries.length && !questionRef.current){ 
+//               setSlideState(slideStateRef.current + 1);
+//               console.log("audio ended, ", slideStateRef.current + 2);
+//                 console.log("test2")
+//                 if(!(slideStateRef.current +1 < tutorReq.length)){
+//                 client.sendUserMessageContent([
+//                   {
+//                     type: `input_text`,
+//                     text: 
+// `Instructions: Tool use: disabled.
+// Now, moving to the next slide.
+// This is the content of the slide ${slideStateRef.current + 2} the student is seeing:
+// {${summaries[slideStateRef.current + 1]}}.
+// And the tutor requirements are not given for this slide so you can explain the concept in your own way.`,
+//                     // text: `Instructions: Tool use: disabled. END IN A SINGLE SENTENCE JUST SAY: THIS IS THE ${slideStateRef.current + 2} slide.`
+//                   },
+//                 ]);
+//               }else{
+//                 client.sendUserMessageContent([
+//                   {
+//                     type: `input_text`,
+//                     text: 
+// `Instructions: Tool use: disabled.
+// Now, moving to the next slide.
+// This is the content of the slide ${slideStateRef.current + 2} the student is seeing:
+// {${summaries[slideStateRef.current + 1]}}.
+// And the tutor requirements are given below:
+// {${tutorReq[slideStateRef.current + 1].req}}.`,
+//               }
+//             ]);
+//               }
+//             }
+//         }
+//       }
+//     },[wavStreamPlayerRef.current.st])
+
   const connectConversation = useCallback(async () => {
     const client = clientRef.current;
     const wavRecorder = wavRecorderRef.current;
@@ -151,20 +225,24 @@ Personality:
       {
         type: `input_text`,
         // text: `Hello!`,
-        text: `Instructions: Tool use: disabled.
-Following the given requirements, Explain the concept based on the content of slide to the student.
-This is the content of the slide ${slideState + 1}:
-{${summaries[slideState]}}.
+//         text: `Instructions: Tool use: disabled.
+// Following the given requirements, Explain the concept based on the content of slide to the student.
+// This is the content of the slide ${slideState + 1}:
+// {${summaries[slideState]}}.
 
-And the Tutor requirements are:
-{${tutorReq[slideState].req}}.`,
+// And the Tutor requirements are:
+// {${tutorReq[slideState].req}}.`,
+        text:`Instructions: Tool use: disabled. Forget below thing: JUST SAY: this is the first slide`
       },
     ]);
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    // setAudioSt(true);
+    // console.log("audio started");
 
     if (client.getTurnDetectionType() === "server_vad") {
       await wavRecorder.record((data) => client.appendInputAudio(data.mono));
     }
-  }, [summaries, slideState]);
+  }, []);
 
   const disconnectConversation = useCallback(async () => {
     setIsConnected(false);
@@ -222,7 +300,8 @@ So Now continue the lecture from where you left off using the saved conversation
 `,
       },
     ]);
-    setQuestion(false);
+    await setQuestion(false);
+    setTimeState(1)
   };
 
   const handleQuestion = async () => {
@@ -338,6 +417,96 @@ Say: Wait`,
     };
   }, []);
 
+  const afterRemainingTime = async () => {
+    // console.log("audio ended");
+    console.log('nothing')
+    const client = clientRef.current;
+            if(slideStateRef.current + 1 < 4 && !questionRef.current){ 
+              setSlideState(slideStateRef.current + 1);
+              console.log("audio ended, ", slideStateRef.current + 2);
+                console.log("test2")
+                if(!(slideStateRef.current +1 < tutorReq.length)){
+                client.sendUserMessageContent([
+                  {
+                    type: `input_text`,
+                    text: 
+`Instructions: Tool use: disabled.
+Now, moving to the next slide.
+This is the content of the slide ${slideStateRef.current + 2} the student is seeing:
+{${summaries[slideStateRef.current + 1]}}.
+And the tutor requirements are not given for this slide so you can explain the concept in your own way.`,
+                    // text: `Instructions: Tool use: disabled. END IN A SINGLE SENTENCE JUST SAY: THIS IS THE ${slideStateRef.current + 2} slide.`
+                  },
+                ]);
+              }else{
+                client.sendUserMessageContent([
+                  {
+                    type: `input_text`,
+                    text: 
+`Instructions: Tool use: disabled.
+Now, moving to the next slide.
+This is the content of the slide ${slideStateRef.current + 2} the student is seeing:
+{${summaries[slideStateRef.current + 1]}}.
+And the tutor requirements are given below:
+{${tutorReq[slideStateRef.current + 1].req}}.`,
+              }
+            ]);
+              }
+            }
+  }
+
+
+  useEffect(() => {
+    const wavStreamPlayer = wavStreamPlayerRef.current;
+    const client = clientRef.current;
+    // wavStreamPlayer.onAudioStart = () => {
+    //       console.log("audio started");
+          wavStreamPlayer.onAudioEnd = () => {
+            if(!audioStRef.current){
+              // setAudioSt(false);
+              console.log("audio fail");
+              return;
+            }
+            if(slideStateRef.current + 1 < summaries.length && !questionRef.current){ 
+              setSlideState(slideStateRef.current + 1);
+              console.log("audio ended, ", slideStateRef.current + 2);
+                console.log("test2")
+                if(!(slideStateRef.current +1 < tutorReq.length)){
+                client.sendUserMessageContent([
+                  {
+                    type: `input_text`,
+                    text: 
+`Instructions: Tool use: disabled.
+Now, moving to the next slide.
+This is the content of the slide ${slideStateRef.current + 2} the student is seeing:
+{${summaries[slideStateRef.current + 1]}}.
+And the tutor requirements are not given for this slide so you can explain the concept in your own way.`,
+                    // text: `Instructions: Tool use: disabled. END IN A SINGLE SENTENCE JUST SAY: THIS IS THE ${slideStateRef.current + 2} slide.`
+                  },
+                ]);
+              }else{
+                client.sendUserMessageContent([
+                  {
+                    type: `input_text`,
+                    text: 
+`Instructions: Tool use: disabled.
+Now, moving to the next slide.
+This is the content of the slide ${slideStateRef.current + 2} the student is seeing:
+{${summaries[slideStateRef.current + 1]}}.
+And the tutor requirements are given below:
+{${tutorReq[slideStateRef.current + 1].req}}.`,
+              }
+            ]);
+              }
+            }
+    // await new Promise((resolve) => setTimeout(resolve, 200));
+        // }
+      }
+    // setAudioSt(true);
+    // console.log("audio started");
+      }, [audioSt]);
+
+
   /**
    * Core RealtimeClient and audio capture setup
    * Set all of our instructions, tools, events and more
@@ -426,51 +595,47 @@ Say: Wait`,
         await client.cancelResponse(trackId, offset);
       }
     });
+  let start = -1;
     client.on("conversation.updated", async ({ item, delta }: any) => {
+
       const items = client.conversation.getItems();
       if (delta?.audio) {
         wavStreamPlayer.add16BitPCM(delta.audio, item.id);
       }
+      if(item.status === 'in_progress' && item.role === 'assistant' && (start === -1) ){
+        // console.log("user audio started");
+        //start the timer here
+        start = Date.now();
+        // console.log("timer started: ", start);
+      }
+      if(item.status === 'in_progress' && item.role === 'assistant' && timeStateRef.current === 1){
+        // console.log("user audio started");
+        //start the timer here
+        start = Date.now();
+        // console.log("timer started: ", start);
+        setTimeState(0);
+      }
       if (item.status === "completed" && item.formatted.audio?.length) {
-        if (item.role === "assistant") {
-          wavStreamPlayer.onAudioEnd = () => {
-            if (
-              slideStateRef.current + 1 < summaries.length &&
-              questionRef.current === false
-            ) {
-              console.log("audio ended, ", slideStateRef.current);
-              setSlideState(slideStateRef.current + 1);
-              if (slideStateRef.current + 1<tutorReq.length) {
-                console.log("test1")
-                client.sendUserMessageContent([
-                  {
-                    type: `input_text`,
-                    text: 
-`Instructions: Tool use: disabled.
-Now, coming to the next slide,
-This is the content of the slide ${slideStateRef.current + 2} the student is seeing:
-{${summaries[slideStateRef.current + 1]}}.
-And the tutor requirements are below if given, if not then you can explain the concept in your own way.:
-{${tutorReq[slideStateRef.current + 1].req}}.`,
-                  },
-                ]);
-              } else {
-                console.log("test2")
-                client.sendUserMessageContent([
-                  {
-                    type: `input_text`,
-                    text: 
-`Instructions: Tool use: disabled.
-Now, moving to the next slide.
-This is the content of the slide ${slideStateRef.current + 2} the student is seeing:
-{${summaries[slideStateRef.current + 1]}}.
-And the tutor requirements are not given for this slide so you can explain the concept in your own way.`,
-                  },
-                ]);
-              }
-            }
-          };
+        if(item.role === "assistant" && !(item.type === 'function_call_output')){
+          console.log("assistant audio recieved completely");
+          // end the timer here
+          const endTime = Date.now();
+          const elapsedTime = endTime - start; // Time in milliseconds
+          console.log(`Elapsed time: ${elapsedTime} ms`);
+          const time = item.formatted.audio.length/24000;
+          const remainingTime = time - (elapsedTime/1000);
+          console.log(`Audio length: ${time} sec`);
+          setTimeout(afterRemainingTime, remainingTime * 1000);
+          console.log(`Remaining time: ${remainingTime} sec`);
+          start = -1;
         }
+        // if(item.role === "assistant" && !(item.type==="function_call_output")){
+        //   console.log("assistant audio started");
+        //   // setAudioSt(true);
+        //   return;
+
+        // }
+        
         const wavFile = await WavRecorder.decode(
           item.formatted.audio,
           24000,
@@ -478,15 +643,18 @@ And the tutor requirements are not given for this slide so you can explain the c
         );
         item.formatted.file = wavFile;
       }
+      // console.log(item)
       setItems(items);
     });
+    // console.log(items);
 
     setItems(client.conversation.getItems());
 
     return () => {
       client.reset();
-    };
-  }, []);
+    }
+   
+   }, []);
 
   /**
    * Render the application
@@ -505,67 +673,6 @@ And the tutor requirements are not given for this slide so you can explain the c
           </div>
         </div>
       </div>
-          <div className="content-block conversation">
-            <div className="content-block-title">conversation</div>
-            <div className="content-block-body" data-conversation-content>
-              {!items.length && `awaiting connection...`}
-              {items.map((conversationItem, i) => {
-                return (
-                  <div className="conversation-item" key={conversationItem.id}>
-                    <div className={`speaker ${conversationItem.role || ''}`}>
-                      <div>
-                        {(
-                          conversationItem.role || conversationItem.type
-                        ).replaceAll('_', ' ')}
-                      </div>
-                      <div
-                        className="close"
-                      >
-                        <X />
-                      </div>
-                    </div>
-                    <div className={`speaker-content`}>
-                      {/* tool response */}
-                      {conversationItem.type === 'function_call_output' && (
-                        <div>{conversationItem.formatted.output}</div>
-                      )}
-                      {/* tool call */}
-                      {!!conversationItem.formatted.tool && (
-                        <div>
-                          {conversationItem.formatted.tool.name}(
-                          {conversationItem.formatted.tool.arguments})
-                        </div>
-                      )}
-                      {!conversationItem.formatted.tool &&
-                        conversationItem.role === 'user' && (
-                          <div>
-                            {conversationItem.formatted.transcript ||
-                              (conversationItem.formatted.audio?.length
-                                ? '(awaiting transcript)'
-                                : conversationItem.formatted.text ||
-                                  '(item sent)')}
-                          </div>
-                        )}
-                      {!conversationItem.formatted.tool &&
-                        conversationItem.role === 'assistant' && (
-                          <div>
-                            {conversationItem.formatted.transcript ||
-                              conversationItem.formatted.text ||
-                              '(truncated)'}
-                          </div>
-                        )}
-                      {conversationItem.formatted.file && (
-                        <audio
-                          src={conversationItem.formatted.file.url}
-                          controls
-                        />
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
       <div className="content-actions">
         {isConnected && canPushToTalk && (
           <Button
@@ -590,8 +697,8 @@ And the tutor requirements are not given for this slide so you can explain the c
           icon={isConnected ? Edit : Zap}
           iconPosition={isConnected ? "end" : "start"}
           disabled={!isConnected}
-          onClick={!questionRef.current ? handleQuestion : handleSlide}
-        />
+          onClick={!question ? handleQuestion: handleSlide}
+        /> 
       </div>
     </div>
   );
