@@ -23,3 +23,10 @@ I designed and built a **voice-based AI tutor web application** as a freelance p
 - Optionally containerized backend with **Docker**, and can be extended with **ECS or EKS** for orchestration if scaling demands grow.
 
 This architecture ensured low-latency audio streaming, cost-efficient scaling, and high availability—all critical for a smooth, interactive learning experience.
+
+Here is the working video of the same:
+(Note: **Use headphones with high volume** to listen to the doubts asked by me at the end and check how the tutor changes the slide according to the question asked)
+
+
+https://github.com/user-attachments/assets/4dff83a7-764a-4df5-9493-b2ae267efc0b
+
